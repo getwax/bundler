@@ -9,6 +9,8 @@ import { Signer } from 'ethers'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
 import { getNetworkProvider } from '../Config'
+import Compressor from './Compressor'
+import { AddressRegistry__factory, BLSSignatureAggregator__factory } from '../types'
 
 /**
  * initialize server modules.
@@ -19,11 +21,15 @@ import { getNetworkProvider } from '../Config'
 export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager] {
   const entryPoint = EntryPoint__factory.connect(config.entryPoint, signer)
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
+  const compressor = new Compressor(
+    AddressRegistry__factory.connect(config.addressRegistry, signer),
+    BLSSignatureAggregator__factory.connect(config.aggregator, signer)
+  )
   const mempoolManager = new MempoolManager(reputationManager)
   const validationManager = new ValidationManager(entryPoint, config.unsafe)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
-    config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
+    compressor, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
   const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager)
 
   reputationManager.addWhitelist(...config.whitelist ?? [])

@@ -2,7 +2,11 @@
   "gasFactor": "1",
   "port": "3000",
   "network": "http://127.0.0.1:8545",
-  "entryPoint": "0x4FeA7E5092531fC3f5430E126Fa5E4A8bF9283BE",
+
+  "entryPoint": "0x9A1B01d52d0533E57c16dE1D2051dF8321664B9E",
+  "addressRegistry": "0xDD90d950A18890f0C76467fEf91c062B6b809c27",
+  "aggregator": "0x8f68797262A445ee1f0379b3476BfDe007cD57De",
+
   "beneficiary": "0xe8250207B79D7396631bb3aE38a7b457261ae0B6",
   "minBalance": "1",
   "mnemonic": "./localconfig/mnemonic.txt",

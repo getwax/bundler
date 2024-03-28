@@ -12,6 +12,10 @@
   resolved "https://registry.yarnpkg.com/@account-abstraction/contracts/-/contracts-0.6.0.tgz#7188a01839999226e6b2796328af338329543b76"
   integrity sha512-8ooRJuR7XzohMDM4MV34I12Ci2bmxfE9+cixakRL7lA4BAwJKQ3ahvd8FbJa9kiwkUPCUNtj+/zxDQWYYalLMQ==
 
+"@account-abstraction/contracts@github:getwax/patched-aa-contracts#0226ca4":
+  version "0.6.0"
+  resolved "https://codeload.github.com/getwax/patched-aa-contracts/tar.gz/0226ca48d1991b515775e87bf6ca84b09f688d0d"
+
 "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.22.5":
   version "7.22.5"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.22.5.tgz#234d98e1551960604f1246e6475891a570ad5658"

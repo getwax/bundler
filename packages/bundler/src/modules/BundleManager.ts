@@ -1,15 +1,16 @@
 import { EntryPoint } from '@account-abstraction/contracts'
-import { MempoolManager } from './MempoolManager'
+import { MempoolEntry, MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
 import { BigNumber, BigNumberish, PopulatedTransaction } from 'ethers'
 import { FeeData, JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
-import { GetUserOpHashes__factory } from '../types'
+import { GetUserOpHashes__factory, HandleOpsCaller } from '../types'
 import { UserOperation, StorageMap, getAddr, mergeStorageMap, runContractScript } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
+import Compressor from './Compressor'
 
 const debug = Debug('aa.exec.cron')
 
@@ -31,6 +32,7 @@ export class BundleManager {
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
+    readonly compressor: Compressor,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number,
@@ -136,13 +138,52 @@ export class BundleManager {
     beneficiary: string,
     feeData: FeeData
   ): Promise<PopulatedTransaction> {
-    return await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
+    const userOpHashes = await this.getUserOpHashes(userOps)
+
+    const entries = userOpHashes
+      .map((hash) => this.mempoolManager.get(hash))
+      .filter(notUndefined)
+
+    const aggregationEntries = entries.filter(e => e.aggregator !== undefined)
+    const nonAggregationEntries = entries.filter(e => e.aggregator === undefined)
+
+    if (aggregationEntries.length > nonAggregationEntries.length) {
+      return await this.populateAggregationBundleTx(aggregationEntries, beneficiary, feeData)
+    }
+
+    return await this.populateNonAggregationBundleTx(nonAggregationEntries.map(e => e.userOp), beneficiary, feeData)
+  }
+
+  async populateAggregationBundleTx (
+    entries: MempoolEntry[],
+    beneficiary: string,
+    feeData: FeeData
+  ): Promise<PopulatedTransaction> {
+    throw new Error('TODO')
+  }
+
+  async populateNonAggregationBundleTx (
+    userOps: UserOperation[],
+    beneficiary: string,
+    feeData: FeeData
+  ): Promise<PopulatedTransaction> {
+    const handleOpsCaller = await this.getHandleOpsCaller(beneficiary)
+    const data = await this.compressor.encodeHandleOps(userOps)
+
+    return {
+      to: handleOpsCaller.address,
+      data,
+
       type: 2,
       nonce: await this.signer.getTransactionCount(),
-      gasLimit: 10e6,
-      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
-      maxFeePerGas: feeData.maxFeePerGas ?? 0
-    })
+      gasLimit: BigNumber.from(10e6),
+      maxPriorityFeePerGas: BigNumber.from(feeData.maxPriorityFeePerGas ?? 0),
+      maxFeePerGas: BigNumber.from(feeData.maxFeePerGas ?? 0)
+    }
+  }
+
+  async getHandleOpsCaller (beneficiary: string): Promise<HandleOpsCaller> {
+    throw new Error('Method not implemented.')
   }
 
   // fatal errors we know we can't recover
@@ -280,4 +321,8 @@ export class BundleManager {
 
     return userOpHashes
   }
+}
+
+function notUndefined<T> (value: T): value is Exclude<T, undefined> {
+  return value !== undefined
 }

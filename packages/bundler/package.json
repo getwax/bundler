@@ -23,7 +23,7 @@
     "watch-tsc": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@account-abstraction/contracts": "^0.6.0",
+    "@account-abstraction/contracts": "github:getwax/patched-aa-contracts#0226ca4",
     "@account-abstraction/sdk": "^0.6.0",
     "@account-abstraction/utils": "^0.6.0",
     "@account-abstraction/validation-manager": "^0.6.0",

@@ -6,6 +6,8 @@ const MIN_STAKE_VALUE = 1e18.toString()
 export interface BundlerConfig {
   beneficiary: string
   entryPoint: string
+  addressRegistry: string
+  aggregator: string
   gasFactor: string
   minBalance: string
   mnemonic: string
@@ -28,6 +30,8 @@ export interface BundlerConfig {
 export const BundlerConfigShape = {
   beneficiary: ow.string,
   entryPoint: ow.string,
+  addressRegistry: ow.string,
+  aggregator: ow.string,
   gasFactor: ow.string,
   minBalance: ow.string,
   mnemonic: ow.string,
