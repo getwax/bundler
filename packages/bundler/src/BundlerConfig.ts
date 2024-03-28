@@ -8,6 +8,8 @@ export interface BundlerConfig {
   entryPoint: string
   addressRegistry: string
   aggregator: string
+  handleOpsCaller: string
+  handleAggregatedOpsCaller: string
   gasFactor: string
   minBalance: string
   mnemonic: string
@@ -32,6 +34,8 @@ export const BundlerConfigShape = {
   entryPoint: ow.string,
   addressRegistry: ow.string,
   aggregator: ow.string,
+  handleOpsCaller: ow.string,
+  handleAggregatedOpsCaller: ow.string,
   gasFactor: ow.string,
   minBalance: ow.string,
   mnemonic: ow.string,

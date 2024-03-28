@@ -10,7 +10,7 @@ import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
 import { getNetworkProvider } from '../Config'
 import Compressor from './Compressor'
-import { AddressRegistry__factory, BLSSignatureAggregator__factory } from '../types'
+import { AddressRegistry__factory, BLSSignatureAggregator__factory, HandleAggregatedOpsCaller__factory, HandleOpsCaller__factory } from '../types'
 
 /**
  * initialize server modules.
@@ -25,11 +25,14 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
     AddressRegistry__factory.connect(config.addressRegistry, signer),
     BLSSignatureAggregator__factory.connect(config.aggregator, signer)
   )
+  const handleOpsCaller = HandleOpsCaller__factory.connect(config.handleOpsCaller, signer)
+  const handleAggregatedOpsCaller = HandleAggregatedOpsCaller__factory.connect(config.handleAggregatedOpsCaller, signer)
   const mempoolManager = new MempoolManager(reputationManager)
   const validationManager = new ValidationManager(entryPoint, config.unsafe)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
-    compressor, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
+    compressor, handleOpsCaller, handleAggregatedOpsCaller, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas,
+    config.conditionalRpc)
   const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager)
 
   reputationManager.addWhitelist(...config.whitelist ?? [])

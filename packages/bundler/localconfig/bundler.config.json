@@ -3,9 +3,11 @@
   "port": "3000",
   "network": "http://127.0.0.1:8545",
 
-  "entryPoint": "0x9A1B01d52d0533E57c16dE1D2051dF8321664B9E",
-  "addressRegistry": "0xDD90d950A18890f0C76467fEf91c062B6b809c27",
-  "aggregator": "0x8f68797262A445ee1f0379b3476BfDe007cD57De",
+  "entryPoint": "0x8C2CB5C20a9C0019cE2F0B2A7CBeE214D92101dF",
+  "addressRegistry": "0x1a81d583Cf60393A731CE6658E3c20469f1e8Af8",
+  "aggregator": "0xfE02DFf759D829D65b47D00495813B070fE32cCa",
+  "handleOpsCaller": "0x6763Baa044087CEc7840C987531df49410FFE6D4",
+  "handleAggregatedOpsCaller": "0x2755AeAa93b1A4c66355470F3e04ca1609c0903d",
 
   "beneficiary": "0xe8250207B79D7396631bb3aE38a7b457261ae0B6",
   "minBalance": "1",

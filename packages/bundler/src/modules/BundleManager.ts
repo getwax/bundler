@@ -6,7 +6,7 @@ import { FeeData, JsonRpcProvider, JsonRpcSigner } from '@ethersproject/provider
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
-import { GetUserOpHashes__factory, HandleOpsCaller } from '../types'
+import { GetUserOpHashes__factory, HandleAggregatedOpsCaller, HandleOpsCaller } from '../types'
 import { UserOperation, StorageMap, getAddr, mergeStorageMap, runContractScript } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
@@ -33,6 +33,8 @@ export class BundleManager {
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
     readonly compressor: Compressor,
+    readonly handleOpsCaller: HandleOpsCaller,
+    readonly handleAggregatedOpsCaller: HandleAggregatedOpsCaller,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number,
@@ -156,7 +158,7 @@ export class BundleManager {
 
   async populateAggregationBundleTx (
     entries: MempoolEntry[],
-    beneficiary: string,
+    _beneficiary: string, // FIXME: can't use dynamic beneficiary because it is a constant in handleOpsCaller
     feeData: FeeData
   ): Promise<PopulatedTransaction> {
     throw new Error('TODO')
@@ -164,14 +166,13 @@ export class BundleManager {
 
   async populateNonAggregationBundleTx (
     userOps: UserOperation[],
-    beneficiary: string,
+    _beneficiary: string, // FIXME: can't use dynamic beneficiary because it is a constant in handleOpsCaller
     feeData: FeeData
   ): Promise<PopulatedTransaction> {
-    const handleOpsCaller = await this.getHandleOpsCaller(beneficiary)
     const data = await this.compressor.encodeHandleOps(userOps)
 
     return {
-      to: handleOpsCaller.address,
+      to: this.handleOpsCaller.address,
       data,
 
       type: 2,
