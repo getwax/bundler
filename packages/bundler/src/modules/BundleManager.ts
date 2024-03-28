@@ -1,8 +1,8 @@
 import { EntryPoint } from '@account-abstraction/contracts'
 import { MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
-import { BigNumber, BigNumberish } from 'ethers'
-import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
+import { BigNumber, BigNumberish, PopulatedTransaction } from 'ethers'
+import { FeeData, JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
@@ -79,13 +79,7 @@ export class BundleManager {
   async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
-      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
-        type: 2,
-        nonce: await this.signer.getTransactionCount(),
-        gasLimit: 10e6,
-        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
-        maxFeePerGas: feeData.maxFeePerGas ?? 0
-      })
+      const tx = await this.populateBundleTx(userOps, beneficiary, feeData)
       tx.chainId = this.provider._network.chainId
       const signedTx = await this.signer.signTransaction(tx)
       let ret: string
@@ -135,6 +129,20 @@ export class BundleManager {
         console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
       }
     }
+  }
+
+  async populateBundleTx (
+    userOps: UserOperation[],
+    beneficiary: string,
+    feeData: FeeData
+  ): Promise<PopulatedTransaction> {
+    return await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
+      type: 2,
+      nonce: await this.signer.getTransactionCount(),
+      gasLimit: 10e6,
+      maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
+      maxFeePerGas: feeData.maxFeePerGas ?? 0
+    })
   }
 
   // fatal errors we know we can't recover
