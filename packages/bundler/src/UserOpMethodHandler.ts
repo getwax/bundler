@@ -113,7 +113,7 @@ export class UserOpMethodHandler {
       throw new RpcError(errorResult.errorArgs.at(-1), ValidationErrors.SimulateValidation)
     }
     // todo throw valid rpc error
-    if (errorResult.errorName !== 'ValidationResult') {
+    if (!errorResult.errorName.startsWith('ValidationResult')) {
       throw errorResult
     }
 
