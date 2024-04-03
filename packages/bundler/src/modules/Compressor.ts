@@ -1,4 +1,5 @@
 import { UserOperation } from '@account-abstraction/utils'
+import { signer as hubbleBlsSigner } from '@thehubbleproject/bls'
 import { AddressRegistry, BLSSignatureAggregator } from '../types'
 import { BigNumber, BigNumberish } from 'ethers'
 import { defaultAbiCoder, hexlify, isAddress, keccak256 } from 'ethers/lib/utils'
@@ -33,7 +34,34 @@ export default class Compressor {
   async encodeHandleAggregatedOps (
     ops: UserOperation[]
   ): Promise<string> {
-    throw new Error('todo')
+    const encodedLen = encodeVLQ(BigInt(ops.length))
+
+    const bits: boolean[] = []
+    const encodedOps: string[] = []
+
+    for (const op of ops) {
+      const encodeResult = await this.encodeOpWithoutSignature(op)
+      bits.push(...encodeResult.bits)
+      encodedOps.push(encodeResult.encodedOp)
+    }
+
+    const aggregatedSignature = hubbleBlsSigner.aggregate(
+      // Using bytes32[2] here to get the uint256 values as strings, which is
+      // required by hubbleBlsSigner.aggregate
+      ops.map((op) => defaultAbiCoder.decode(['bytes32[2]'], op.signature)[0])
+    )
+
+    const encodedAggregatedSignature = defaultAbiCoder.encode(
+      ['uint256[2]'],
+      [aggregatedSignature]
+    )
+
+    return hexJoin([
+      encodedLen,
+      encodeBitStack(bits),
+      ...encodedOps,
+      encodedAggregatedSignature
+    ])
   }
 
   async encodeOpWithoutSignature (op: UserOperation): Promise<{

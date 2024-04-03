@@ -161,7 +161,23 @@ export class BundleManager {
     _beneficiary: string, // FIXME: can't use dynamic beneficiary because it is a constant in handleOpsCaller
     feeData: FeeData
   ): Promise<PopulatedTransaction> {
-    throw new Error('TODO')
+    for (const entry of entries) {
+      if (entry.aggregator?.toLowerCase() !== this.compressor.aggregator.address.toLowerCase()) {
+        throw new Error(`Unsupported aggregator ${entry.aggregator} (should be ${this.compressor.aggregator.address})`)
+      }
+    }
+
+    const data = await this.compressor.encodeHandleAggregatedOps(entries.map(e => e.userOp))
+
+    return {
+      to: this.handleAggregatedOpsCaller.address,
+      data,
+      type: 2,
+      nonce: await this.signer.getTransactionCount(),
+      gasLimit: BigNumber.from(10e6),
+      maxPriorityFeePerGas: BigNumber.from(feeData.maxPriorityFeePerGas ?? 0),
+      maxFeePerGas: BigNumber.from(feeData.maxFeePerGas ?? 0)
+    }
   }
 
   async populateNonAggregationBundleTx (
@@ -174,17 +190,12 @@ export class BundleManager {
     return {
       to: this.handleOpsCaller.address,
       data,
-
       type: 2,
       nonce: await this.signer.getTransactionCount(),
       gasLimit: BigNumber.from(10e6),
       maxPriorityFeePerGas: BigNumber.from(feeData.maxPriorityFeePerGas ?? 0),
       maxFeePerGas: BigNumber.from(feeData.maxFeePerGas ?? 0)
     }
-  }
-
-  async getHandleOpsCaller (beneficiary: string): Promise<HandleOpsCaller> {
-    throw new Error('Method not implemented.')
   }
 
   // fatal errors we know we can't recover

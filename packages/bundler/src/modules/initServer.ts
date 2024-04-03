@@ -11,6 +11,7 @@ import { EventsManager } from './EventsManager'
 import { getNetworkProvider } from '../Config'
 import Compressor from './Compressor'
 import { AddressRegistry__factory, BLSSignatureAggregator__factory, HandleAggregatedOpsCaller__factory, HandleOpsCaller__factory } from '../types'
+import { init } from '@thehubbleproject/bls/dist/mcl'
 
 /**
  * initialize server modules.
@@ -18,7 +19,7 @@ import { AddressRegistry__factory, BLSSignatureAggregator__factory, HandleAggreg
  * @param config
  * @param signer
  */
-export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager] {
+export async function initServer (config: BundlerConfig, signer: Signer): Promise<[ExecutionManager, EventsManager, ReputationManager, MempoolManager]> {
   const entryPoint = EntryPoint__factory.connect(config.entryPoint, signer)
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
   const compressor = new Compressor(
@@ -38,6 +39,8 @@ export function initServer (config: BundlerConfig, signer: Signer): [ExecutionMa
   reputationManager.addWhitelist(...config.whitelist ?? [])
   reputationManager.addBlacklist(...config.blacklist ?? [])
   executionManager.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
+
+  await init()
 
   return [executionManager, eventsManager, reputationManager, mempoolManager]
 }
