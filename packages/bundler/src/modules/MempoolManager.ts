@@ -109,6 +109,10 @@ export class MempoolManager {
     this.updateSeenStatus(aggregatorInfo?.addr, userOp, senderInfo)
   }
 
+  get (userOpHash: string): MempoolEntry | undefined {
+    return this.mempool.find(entry => entry.userOpHash === userOpHash)
+  }
+
   private updateSeenStatus (aggregator: string | undefined, userOp: UserOperation, senderInfo: StakeInfo): void {
     try {
       this.reputationManager.checkStake('account', senderInfo)

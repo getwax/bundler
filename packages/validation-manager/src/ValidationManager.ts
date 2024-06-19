@@ -113,7 +113,7 @@ export class ValidationManager {
       },
       factoryInfo: fillEntity(userOp.initCode, factoryInfo),
       paymasterInfo: fillEntity(userOp.paymasterAndData, paymasterInfo),
-      aggregatorInfo: fillEntity(aggregatorInfo?.actualAggregator, aggregatorInfo?.stakeInfo)
+      aggregatorInfo: fillEntity(aggregatorInfo?.aggregator, aggregatorInfo?.stakeInfo)
     }
   }
 
@@ -225,10 +225,6 @@ export class ValidationManager {
     requireCond(res.returnInfo.validUntil == null || res.returnInfo.validUntil > now + VALID_UNTIL_FUTURE_SECONDS,
       'expires too soon',
       ValidationErrors.NotInTimeRange)
-
-    requireCond(res.aggregatorInfo == null,
-      'Currently not supporting aggregator',
-      ValidationErrors.UnsupportedSignatureAggregator)
 
     const verificationCost = BigNumber.from(res.returnInfo.preOpGas).sub(userOp.preVerificationGas)
     const extraGas = BigNumber.from(userOp.verificationGasLimit).sub(verificationCost).toNumber()

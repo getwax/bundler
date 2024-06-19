@@ -9,6 +9,9 @@ import { Signer } from 'ethers'
 import { BundlerConfig } from '../BundlerConfig'
 import { EventsManager } from './EventsManager'
 import { getNetworkProvider } from '../Config'
+import Compressor from './Compressor'
+import { AddressRegistry__factory, BLSSignatureAggregator__factory, HandleAggregatedOpsCaller__factory, HandleOpsCaller__factory } from '../types'
+import { init } from '@thehubbleproject/bls/dist/mcl'
 
 /**
  * initialize server modules.
@@ -16,19 +19,28 @@ import { getNetworkProvider } from '../Config'
  * @param config
  * @param signer
  */
-export function initServer (config: BundlerConfig, signer: Signer): [ExecutionManager, EventsManager, ReputationManager, MempoolManager] {
+export async function initServer (config: BundlerConfig, signer: Signer): Promise<[ExecutionManager, EventsManager, ReputationManager, MempoolManager]> {
   const entryPoint = EntryPoint__factory.connect(config.entryPoint, signer)
   const reputationManager = new ReputationManager(getNetworkProvider(config.network), BundlerReputationParams, parseEther(config.minStake), config.minUnstakeDelay)
+  const compressor = new Compressor(
+    AddressRegistry__factory.connect(config.addressRegistry, signer),
+    BLSSignatureAggregator__factory.connect(config.aggregator, signer)
+  )
+  const handleOpsCaller = HandleOpsCaller__factory.connect(config.handleOpsCaller, signer)
+  const handleAggregatedOpsCaller = HandleAggregatedOpsCaller__factory.connect(config.handleAggregatedOpsCaller, signer)
   const mempoolManager = new MempoolManager(reputationManager)
   const validationManager = new ValidationManager(entryPoint, config.unsafe)
   const eventsManager = new EventsManager(entryPoint, mempoolManager, reputationManager)
   const bundleManager = new BundleManager(entryPoint, eventsManager, mempoolManager, validationManager, reputationManager,
-    config.beneficiary, parseEther(config.minBalance), config.maxBundleGas, config.conditionalRpc)
+    compressor, handleOpsCaller, handleAggregatedOpsCaller, config.beneficiary, parseEther(config.minBalance), config.maxBundleGas,
+    config.conditionalRpc)
   const executionManager = new ExecutionManager(reputationManager, mempoolManager, bundleManager, validationManager)
 
   reputationManager.addWhitelist(...config.whitelist ?? [])
   reputationManager.addBlacklist(...config.blacklist ?? [])
   executionManager.setAutoBundler(config.autoBundleInterval, config.autoBundleMempoolSize)
+
+  await init()
 
   return [executionManager, eventsManager, reputationManager, mempoolManager]
 }

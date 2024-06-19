@@ -136,7 +136,7 @@ export async function runBundler (argv: string[], overrideExit = true): Promise<
     execManagerConfig.autoBundleInterval = 0
   }
 
-  const [execManager, eventsManager, reputationManager, mempoolManager] = initServer(execManagerConfig, entryPoint.signer)
+  const [execManager, eventsManager, reputationManager, mempoolManager] = await initServer(execManagerConfig, entryPoint.signer)
   const methodHandler = new UserOpMethodHandler(
     execManager,
     provider,

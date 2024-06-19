@@ -1,15 +1,16 @@
 import { EntryPoint } from '@account-abstraction/contracts'
-import { MempoolManager } from './MempoolManager'
+import { MempoolEntry, MempoolManager } from './MempoolManager'
 import { ValidateUserOpResult, ValidationManager } from '@account-abstraction/validation-manager'
-import { BigNumber, BigNumberish } from 'ethers'
-import { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
+import { BigNumber, BigNumberish, PopulatedTransaction } from 'ethers'
+import { FeeData, JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 import Debug from 'debug'
 import { ReputationManager, ReputationStatus } from './ReputationManager'
 import { Mutex } from 'async-mutex'
-import { GetUserOpHashes__factory } from '../types'
+import { GetUserOpHashes__factory, HandleAggregatedOpsCaller, HandleOpsCaller } from '../types'
 import { UserOperation, StorageMap, getAddr, mergeStorageMap, runContractScript } from '@account-abstraction/utils'
 import { EventsManager } from './EventsManager'
 import { ErrorDescription } from '@ethersproject/abi/lib/interface'
+import Compressor from './Compressor'
 
 const debug = Debug('aa.exec.cron')
 
@@ -31,6 +32,9 @@ export class BundleManager {
     readonly mempoolManager: MempoolManager,
     readonly validationManager: ValidationManager,
     readonly reputationManager: ReputationManager,
+    readonly compressor: Compressor,
+    readonly handleOpsCaller: HandleOpsCaller,
+    readonly handleAggregatedOpsCaller: HandleAggregatedOpsCaller,
     readonly beneficiary: string,
     readonly minSignerBalance: BigNumberish,
     readonly maxBundleGas: number,
@@ -79,13 +83,7 @@ export class BundleManager {
   async sendBundle (userOps: UserOperation[], beneficiary: string, storageMap: StorageMap): Promise<SendBundleReturn | undefined> {
     try {
       const feeData = await this.provider.getFeeData()
-      const tx = await this.entryPoint.populateTransaction.handleOps(userOps, beneficiary, {
-        type: 2,
-        nonce: await this.signer.getTransactionCount(),
-        gasLimit: 10e6,
-        maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? 0,
-        maxFeePerGas: feeData.maxFeePerGas ?? 0
-      })
+      const tx = await this.populateBundleTx(userOps, beneficiary, feeData)
       tx.chainId = this.provider._network.chainId
       const signedTx = await this.signer.signTransaction(tx)
       let ret: string
@@ -134,6 +132,69 @@ export class BundleManager {
         this.mempoolManager.removeUserOp(userOp)
         console.warn(`Failed handleOps sender=${userOp.sender} reason=${reasonStr}`)
       }
+    }
+  }
+
+  async populateBundleTx (
+    userOps: UserOperation[],
+    beneficiary: string,
+    feeData: FeeData
+  ): Promise<PopulatedTransaction> {
+    const userOpHashes = await this.getUserOpHashes(userOps)
+
+    const entries = userOpHashes
+      .map((hash) => this.mempoolManager.get(hash))
+      .filter(notUndefined)
+
+    const aggregationEntries = entries.filter(e => e.aggregator !== undefined)
+    const nonAggregationEntries = entries.filter(e => e.aggregator === undefined)
+
+    if (aggregationEntries.length > nonAggregationEntries.length) {
+      return await this.populateAggregationBundleTx(aggregationEntries, beneficiary, feeData)
+    }
+
+    return await this.populateNonAggregationBundleTx(nonAggregationEntries.map(e => e.userOp), beneficiary, feeData)
+  }
+
+  async populateAggregationBundleTx (
+    entries: MempoolEntry[],
+    _beneficiary: string, // FIXME: can't use dynamic beneficiary because it is a constant in handleOpsCaller
+    feeData: FeeData
+  ): Promise<PopulatedTransaction> {
+    for (const entry of entries) {
+      if (entry.aggregator?.toLowerCase() !== this.compressor.aggregator.address.toLowerCase()) {
+        throw new Error(`Unsupported aggregator ${entry.aggregator} (should be ${this.compressor.aggregator.address})`)
+      }
+    }
+
+    const data = await this.compressor.encodeHandleAggregatedOps(entries.map(e => e.userOp))
+
+    return {
+      to: this.handleAggregatedOpsCaller.address,
+      data,
+      type: 2,
+      nonce: await this.signer.getTransactionCount(),
+      gasLimit: BigNumber.from(10e6),
+      maxPriorityFeePerGas: BigNumber.from(feeData.maxPriorityFeePerGas ?? 0),
+      maxFeePerGas: BigNumber.from(feeData.maxFeePerGas ?? 0)
+    }
+  }
+
+  async populateNonAggregationBundleTx (
+    userOps: UserOperation[],
+    _beneficiary: string, // FIXME: can't use dynamic beneficiary because it is a constant in handleOpsCaller
+    feeData: FeeData
+  ): Promise<PopulatedTransaction> {
+    const data = await this.compressor.encodeHandleOps(userOps)
+
+    return {
+      to: this.handleOpsCaller.address,
+      data,
+      type: 2,
+      nonce: await this.signer.getTransactionCount(),
+      gasLimit: BigNumber.from(10e6),
+      maxPriorityFeePerGas: BigNumber.from(feeData.maxPriorityFeePerGas ?? 0),
+      maxFeePerGas: BigNumber.from(feeData.maxFeePerGas ?? 0)
     }
   }
 
@@ -272,4 +333,8 @@ export class BundleManager {
 
     return userOpHashes
   }
+}
+
+function notUndefined<T> (value: T): value is Exclude<T, undefined> {
+  return value !== undefined
 }
